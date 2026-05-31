@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BitShares Pool Explorer · XRP &amp; XLM</title>
+  <style>
+    /* ── Reset & Base ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #0b0f1a;
+      --surface:     #111827;
+      --surface2:    #1a2235;
+      --border:      #1e2d45;
+      --border2:     #243350;
+
+      /* XRP palette */
+      --xrp:         #346aa9;
+      --xrp-light:   #4d8fd4;
+      --xrp-glow:    rgba(52, 106, 169, 0.18);
+
+      /* XLM palette */
+      --xlm:         #2d6e5e;
+      --xlm-light:   #3da88e;
+      --xlm-glow:    rgba(45, 110, 94, 0.18);
+
+      /* Active token colours (swapped by JS) */
+      --tok:         var(--xrp);
+      --tok-light:   var(--xrp-light);
+      --tok-glow:    var(--xrp-glow);
+
+      --accent:      #5ba3e0;
+      --green:       #34d399;
+      --red:         #f87171;
+      --yellow:      #fbbf24;
+      --text:        #e2e8f0;
+      --text-dim:    #94a3b8;
+      --text-mute:   #4a5568;
+      --mono:        'SF Mono', 'Fira Code', 'Fira Mono', 'Roboto Mono', monospace;
+      --radius:      10px;
+      --radius-sm:   6px;
+      --tr:          180ms ease;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Layout ───────────────────────────────────────────────── */
+    .wrap { max-width: 960px; margin: 0 auto; padding: 0 20px; }
+
+    /* ── Header ───────────────────────────────────────────────── */
+    header {
+      border-bottom: 1px solid var(--border);
+      padding: 16px 0;
+      position: sticky; top: 0;
+      background: rgba(11,15,26,0.93);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      z-index: 100;
+    }
+
+    .header-inner {
+      display: flex; align-items: center;
+      justify-content: space-between; gap: 12px;
+    }
+
+    .brand { display: flex; align-items: center; gap: 10px; }
+
+    .brand-icon {
+      width: 32px; height: 32px;
+      background: linear-gradient(135deg, var(--xrp) 0%, var(--xlm-light) 100%);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 800; color: #fff;
+      letter-spacing: -0.5px; flex-shrink: 0;
+    }
+
+    .brand-name  { font-size: 15px; font-weight: 700; letter-spacing: -0.3px; }
+    .brand-sub   { font-size: 11px; color: var(--text-dim); letter-spacing: 0.5px; text-transform: uppercase; }
+
+    .header-right { display: flex; align-items: center; gap: 10px; }
+
+    /* ── Status pill ──────────────────────────────────────────── */
+    .status-pill {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 11px; font-weight: 600; color: var(--text-dim);
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 20px; padding: 4px 10px; letter-spacing: 0.3px;
+      transition: var(--tr);
+    }
+    .status-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--text-mute); transition: var(--tr); flex-shrink: 0;
+    }
+    .status-pill.connected  .status-dot { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .status-pill.connecting .status-dot { background: var(--yellow); animation: pulse 1s infinite; }
+    .status-pill.error      .status-dot { background: var(--red); }
+
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+    /* ── Refresh button ───────────────────────────────────────── */
+    .btn-refresh {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; font-weight: 600; color: var(--accent);
+      background: transparent; border: 1px solid var(--border2);
+      border-radius: var(--radius-sm); padding: 5px 12px;
+      cursor: pointer; transition: var(--tr); letter-spacing: 0.2px;
+    }
+    .btn-refresh:hover:not(:disabled) {
+      background: var(--xrp-glow); border-color: var(--xrp); color: var(--xrp-light);
+    }
+    .btn-refresh:disabled { opacity: .45; cursor: not-allowed; }
+    .btn-refresh svg { transition: transform .5s ease; }
+    .btn-refresh.spinning svg { animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Node selector ────────────────────────────────────────── */
+    .node-select {
+      font-size: 11px; color: var(--text-mute);
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 3px 7px;
+      cursor: pointer; outline: none; transition: var(--tr);
+    }
+    .node-select:hover, .node-select:focus {
+      border-color: var(--border2); color: var(--text-dim);
+    }
+
+    /* ── Tab bar ──────────────────────────────────────────────── */
+    .tab-bar {
+      display: flex; gap: 4px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 4px;
+      margin-bottom: 22px;
+    }
+
+    .tab-btn {
+      flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px;
+      font-size: 13px; font-weight: 700; letter-spacing: 0.2px;
+      padding: 8px 14px; border-radius: 7px; border: none;
+      background: transparent; color: var(--text-mute);
+      cursor: pointer; transition: var(--tr);
+    }
+    .tab-btn:hover { color: var(--text-dim); background: var(--surface2); }
+
+    .tab-btn.active-xrp {
+      background: linear-gradient(135deg, rgba(52,106,169,.25) 0%, rgba(77,143,212,.15) 100%);
+      color: var(--xrp-light);
+      box-shadow: inset 0 0 0 1px rgba(52,106,169,.4);
+    }
+    .tab-btn.active-xlm {
+      background: linear-gradient(135deg, rgba(45,110,94,.25) 0%, rgba(61,168,142,.15) 100%);
+      color: var(--xlm-light);
+      box-shadow: inset 0 0 0 1px rgba(45,110,94,.4);
+    }
+
+    .tab-dot {
+      width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+    }
+    .tab-btn.active-xrp .tab-dot { background: var(--xrp-light); box-shadow: 0 0 5px var(--xrp-light); }
+    .tab-btn.active-xlm .tab-dot { background: var(--xlm-light); box-shadow: 0 0 5px var(--xlm-light); }
+    .tab-btn:not(.active-xrp):not(.active-xlm) .tab-dot { background: var(--text-mute); }
+
+    /* ── Main ─────────────────────────────────────────────────── */
+    main { padding: 24px 0 60px; }
+
+    /* ── Summary bar ──────────────────────────────────────────── */
+    .summary-bar {
+      display: grid; grid-template-columns: repeat(3,1fr);
+      gap: 12px; margin-bottom: 22px;
+    }
+
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 16px 18px;
+      position: relative; overflow: hidden; transition: border-color var(--tr);
+    }
+    .stat-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, var(--tok) 0%, var(--tok-light) 100%);
+      opacity: 0; transition: opacity var(--tr);
+    }
+    .stat-card:hover { border-color: var(--border2); }
+    .stat-card:hover::before { opacity: 1; }
+
+    .stat-label {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 1px; color: var(--text-mute); margin-bottom: 6px;
+    }
+    .stat-value {
+      font-size: 22px; font-weight: 800; font-family: var(--mono);
+      letter-spacing: -0.5px; line-height: 1.2;
+    }
+    .stat-value.green { color: var(--green); }
+    .stat-value.tok   { color: var(--accent); }
+    .stat-sub { font-size: 11px; color: var(--text-mute); margin-top: 3px; }
+
+    /* ── Section heading ──────────────────────────────────────── */
+    .section-head {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .section-title {
+      font-size: 12px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 1.2px; color: var(--text-dim);
+    }
+    .section-count { font-size: 11px; color: var(--text-mute); }
+
+    /* ── Pool list ────────────────────────────────────────────── */
+    .pool-list { display: flex; flex-direction: column; gap: 10px; }
+
+    /* ── Pool card ────────────────────────────────────────────── */
+    .pool-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+      transition: border-color var(--tr), box-shadow var(--tr);
+    }
+    .pool-card:hover {
+      border-color: var(--border2); box-shadow: 0 4px 24px rgba(0,0,0,.3);
+    }
+
+    .pool-card-inner {
+      display: grid; grid-template-columns: auto 1fr auto; align-items: center;
+    }
+
+    .pool-accent {
+      width: 3px; align-self: stretch;
+      background: linear-gradient(180deg, var(--tok) 0%, var(--tok-light) 100%);
+    }
+
+    .pool-main { padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+
+    .pool-top {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    }
+    .pool-name-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+
+    .pool-badge {
+      font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px;
+      background: var(--tok-glow); border: 1px solid rgba(255,255,255,.08);
+      color: var(--tok-light); border-radius: 4px; padding: 2px 6px; flex-shrink: 0;
+    }
+    .pool-name {
+      font-size: 14px; font-weight: 700;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .pool-id { font-size: 10px; color: var(--text-mute); font-family: var(--mono); flex-shrink: 0; }
+    .pool-fee-badge {
+      font-size: 10px; font-weight: 600; color: var(--text-mute);
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 4px; padding: 2px 7px; flex-shrink: 0;
+    }
+
+    .pool-balances { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+    .balance-chip {
+      display: flex; align-items: center; gap: 5px;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 4px 10px;
+      font-size: 12px; font-family: var(--mono); transition: var(--tr);
+    }
+    .balance-chip:hover { border-color: var(--border2); }
+    .balance-chip .sym { font-size: 10px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; }
+    .balance-chip .amt { font-weight: 600; }
+
+    .balance-sep { color: var(--text-mute); font-size: 12px; padding: 0 2px; }
+    .metric-ratio { font-size: 11px; color: var(--text-mute); font-family: var(--mono); }
+
+    .pool-metrics {
+      padding: 14px 18px 14px 0;
+      display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0;
+    }
+    .metric-tvl {
+      font-size: 16px; font-weight: 800; color: var(--accent);
+      font-family: var(--mono); letter-spacing: -0.5px;
+    }
+    .metric-label {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .8px; color: var(--text-mute);
+    }
+    .metric-usd { font-size: 12px; color: var(--green); font-family: var(--mono); font-weight: 600; }
+
+    .pool-share-row { padding: 0 16px 12px; }
+    .share-bar-wrap { display: flex; align-items: center; gap: 8px; }
+    .share-bar-track {
+      flex: 1; height: 3px; background: var(--surface2); border-radius: 2px; overflow: hidden;
+    }
+    .share-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--tok) 0%, var(--tok-light) 100%);
+      border-radius: 2px; transition: width .6s cubic-bezier(.4,0,.2,1);
+    }
+    .share-pct {
+      font-size: 10px; font-family: var(--mono); color: var(--text-mute);
+      flex-shrink: 0; width: 34px; text-align: right;
+    }
+
+    /* ── State boxes ──────────────────────────────────────────── */
+    .state-box {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 40px 24px; text-align: center;
+    }
+    .state-icon { font-size: 32px; margin-bottom: 12px; display: block; }
+    .state-title { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+    .state-msg { font-size: 13px; color: var(--text-dim); max-width: 320px; margin: 0 auto 16px; }
+
+    .state-box.error-box {
+      border-color: rgba(248,113,113,.25); background: rgba(248,113,113,.04);
+    }
+    .state-box.error-box .state-title { color: var(--red); }
+
+    .btn-retry {
+      font-size: 12px; font-weight: 700; color: var(--red);
+      background: transparent; border: 1px solid rgba(248,113,113,.4);
+      border-radius: var(--radius-sm); padding: 7px 18px;
+      cursor: pointer; transition: var(--tr); letter-spacing: .3px;
+    }
+    .btn-retry:hover { background: rgba(248,113,113,.1); border-color: var(--red); }
+
+    /* ── Skeleton ─────────────────────────────────────────────── */
+    .skeleton {
+      background: linear-gradient(90deg, var(--surface) 25%, var(--surface2) 50%, var(--surface) 75%);
+      background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 4px;
+    }
+    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+    .skel-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 16px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .skel-line { height: 12px; }
+    .skel-line.w-60 { width: 60%; }
+    .skel-line.w-40 { width: 40%; }
+    .skel-line.w-80 { width: 80%; }
+
+    /* ── Footer ───────────────────────────────────────────────── */
+    footer { border-top: 1px solid var(--border); padding: 20px 0; }
+    .footer-inner {
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 10px;
+    }
+    .footer-left { font-size: 11px; color: var(--text-mute); }
+    .footer-right { display: flex; align-items: center; gap: 16px; }
+    .footer-link {
+      font-size: 11px; color: var(--text-mute); text-decoration: none; transition: color var(--tr);
+    }
+    .footer-link:hover { color: var(--accent); }
+    .last-updated { font-size: 11px; color: var(--text-mute); font-family: var(--mono); }
+
+    /* ── Price flash ──────────────────────────────────────────── */
+    .price-flash { animation: flash .4s ease; }
+    @keyframes flash { 0%{color:var(--green)} 100%{color:inherit} }
+
+    /* ── Tab panel visibility ─────────────────────────────────── */
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── Responsive ───────────────────────────────────────────── */
+    @media (max-width: 640px) {
+      .summary-bar { grid-template-columns: repeat(2,1fr); }
+      .summary-bar .stat-card:last-child { grid-column: 1/-1; }
+      .pool-card-inner { grid-template-columns: auto 1fr; }
+      .pool-metrics { display: none; }
+      .stat-value { font-size: 18px; }
+      .header-inner { flex-wrap: wrap; gap: 8px; }
+      .tab-btn { font-size: 12px; padding: 7px 10px; }
+    }
+    @media (max-width: 420px) {
+      .summary-bar { grid-template-columns: 1fr; }
+      .summary-bar .stat-card:last-child { grid-column: auto; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ───────────────────────────────────────────────── -->
+<header>
+  <div class="wrap">
+    <div class="header-inner">
+      <div class="brand">
+        <div class="brand-icon">BS</div>
+        <div>
+          <div class="brand-name">BitShares Pool Explorer</div>
+          <div class="brand-sub">XRP &amp; XLM · Live</div>
+        </div>
+      </div>
+      <div class="header-right">
+        <select class="node-select" id="nodeSelect" title="BitShares node">
+          <option value="wss://api.bts.mobi/ws">api.bts.mobi</option>
+          <option value="wss://node.xbts.io/ws">node.xbts.io</option>
+          <option value="wss://eu.nodes.bitshares.ws/ws">eu.nodes.bitshares.ws</option>
+          <option value="wss://api.bitshares.bhuz.info/ws">api.bitshares.bhuz.info</option>
+        </select>
+        <div class="status-pill connecting" id="statusPill">
+          <div class="status-dot"></div>
+          <span id="statusText">Connecting</span>
+        </div>
+        <button class="btn-refresh" id="refreshBtn" disabled>
+          <svg id="refreshIcon" width="13" height="13" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <polyline points="1 20 1 14 7 14"></polyline>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+          </svg>
+          Refresh
+        </button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ── Main ─────────────────────────────────────────────────── -->
+<main>
+  <div class="wrap">
+
+    <!-- Tab bar -->
+    <div class="tab-bar">
+      <button class="tab-btn active-xrp" id="tabXRP" onclick="switchTab('xrp')">
+        <span class="tab-dot"></span> XRP Pools
+      </button>
+      <button class="tab-btn" id="tabXLM" onclick="switchTab('xlm')">
+        <span class="tab-dot"></span> XLM Pools
+      </button>
+    </div>
+
+    <!-- ── XRP Panel ──────────────────────────────────────────── -->
+    <div class="tab-panel active" id="panelXRP">
+      <div class="summary-bar">
+        <div class="stat-card">
+          <div class="stat-label">Active Pools</div>
+          <div class="stat-value tok" id="xrpStatPools">—</div>
+          <div class="stat-sub">XRP liquidity pools</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">XRP Price</div>
+          <div class="stat-value green" id="xrpStatPrice">—</div>
+          <div class="stat-sub">via CoinPaprika</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Total TVL</div>
+          <div class="stat-value" id="xrpStatTVL">—</div>
+          <div class="stat-sub" id="xrpStatTVLUsd">across all pools</div>
+        </div>
+      </div>
+      <div class="section-head">
+        <div class="section-title">XRP Liquidity Pools</div>
+        <div class="section-count" id="xrpPoolCount"></div>
+      </div>
+      <div class="pool-list" id="xrpPoolList">
+        <div class="skel-card"><div class="skel-line w-60 skeleton"></div><div class="skel-line w-80 skeleton"></div><div class="skel-line w-40 skeleton"></div></div>
+        <div class="skel-card"><div class="skel-line w-60 skeleton"></div><div class="skel-line w-80 skeleton"></div><div class="skel-line w-40 skeleton"></div></div>
+        <div class="skel-card"><div class="skel-line w-60 skeleton"></div><div class="skel-line w-80 skeleton"></div><div class="skel-line w-40 skeleton"></div></div>
+        <div class="skel-card"><div class="skel-line w-60 skeleton"></div><div class="skel-line w-80 skeleton"></div><div class="skel-line w-40 skeleton"></div></div>
+      </div>
+    </div>
+
+    <!-- ── XLM Panel ──────────────────────────────────────────── -->
+    <div class="tab-panel" id="panelXLM">
+      <div class="summary-bar">
+        <div class="stat-card">
+          <div class="stat-label">Active Pools</div>
+          <div class="stat-value tok" id="xlmStatPools">—</div>
+          <div class="stat-sub">XLM liquidity pools</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">XLM Price</div>
+          <div class="stat-value green" id="xlmStatPrice">—</div>
+          <div class="stat-sub">via CoinPaprika</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Total TVL</div>
+          <div class="stat-value" id="xlmStatTVL">—</div>
+          <div class="stat-sub" id="xlmStatTVLUsd">across all pools</div>
+        </div>
+      </div>
+      <div class="section-head">
+        <div class="section-title">XLM Liquidity Pools</div>
+        <div class="section-count" id="xlmPoolCount"></div>
+      </div>
+      <div class="pool-list" id="xlmPoolList">
+        <div class="skel-card"><div class="skel-line w-60 skeleton"></div><div class="skel-line w-80 skeleton"></div><div class="skel-line w-40 skeleton"></div></div>
+        <div class="skel-card"><div class="skel-line w-60 skeleton"></div><div class="skel-line w-80 skeleton"></div><div class="skel-line w-40 skeleton"></div></div>
+        <div class="skel-card"><div class="skel-line w-60 skeleton"></div><div class="skel-line w-80 skeleton"></div><div class="skel-line w-40 skeleton"></div></div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- ── Footer ───────────────────────────────────────────────── -->
+<footer>
+  <div class="wrap">
+    <div class="footer-inner">
+      <div class="footer-left">BitShares Pool Explorer · XRP &amp; XLM · Read-only</div>
+      <div class="footer-right">
+        <span class="last-updated" id="lastUpdated"></span>
+        <a class="footer-link" href="https://bts.ai" target="_blank" rel="noopener">bts.ai</a>
+        <a class="footer-link" href="https://wallet.bitshares.org" target="_blank" rel="noopener">BitShares Wallet</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+(() => {
+  'use strict';
+
+  /* ── Pool configuration ──────────────────────────────────── */
+  const POOLS = {
+    xrp: {
+      ids: ['1.19.44', '1.19.133', '1.19.518', '1.19.394'],
+      labels: {
+        '1.19.44':  'XRP / TWENTIX',
+        '1.19.133': 'XRP / BTS',
+        '1.19.518': 'XRP / BTC',
+        '1.19.394': 'XRP / HONEST.MONEY',
+      },
+      tokenSymbolPattern: /xrp/i,
+      priceUrl: 'https://api.coinpaprika.com/v1/tickers/xrp-xrp',
+      tokenName: 'XRP',
+      cssToken: 'xrp',
+    },
+    xlm: {
+      ids: ['1.19.464', '1.19.399', '1.19.434'],
+      labels: {
+        '1.19.464': 'TWENTIX / XLM',
+        '1.19.399': 'BTS / XLM',
+        '1.19.434': 'HONEST.MONEY / XLM',
+      },
+      tokenSymbolPattern: /xlm/i,
+      priceUrl: 'https://api.coinpaprika.com/v1/tickers/xlm-stellar',
+      tokenName: 'XLM',
+      cssToken: 'xlm',
+    },
+  };
+
+  /* ── App state ───────────────────────────────────────────── */
+  const state = {
+    xrp: { pools: [], price: null, loaded: false, loading: false },
+    xlm: { pools: [], price: null, loaded: false, loading: false },
+  };
+
+  let activeTab = 'xrp';
+
+  /* ── WebSocket / RPC ─────────────────────────────────────── */
+  let ws = null;
+  let callId = 0;
+  const pending = new Map();
+  let reconnectAttempts = 0;
+  const MAX_RECONNECT = 6;
+  let refreshTimer = null;
+  const REFRESH_INTERVAL_MS = 60_000;
+
+  /* ── DOM helpers ─────────────────────────────────────────── */
+  const $ = id => document.getElementById(id);
+
+  /* ── Number formatting ───────────────────────────────────── */
+  function fmtNum(n, d = 2) {
+    if (n >= 1_000_000) return (n / 1_000_000).toFixed(d) + 'M';
+    if (n >= 1_000)     return (n / 1_000).toFixed(d) + 'K';
+    return n.toFixed(d);
+  }
+
+  function fmtToken(n, sym) {
+    if (n >= 1_000_000) return (n / 1_000_000).toFixed(3) + 'M ' + sym;
+    if (n >= 1_000)     return (n / 1_000).toFixed(2) + 'K ' + sym;
+    return n.toFixed(4) + ' ' + sym;
+  }
+
+  function fmtUSD(n) {
+    if (n >= 1_000_000) return '$' + (n / 1_000_000).toFixed(2) + 'M';
+    if (n >= 1_000)     return '$' + (n / 1_000).toFixed(2) + 'K';
+    return '$' + n.toFixed(2);
+  }
+
+  function fmtTime(d) {
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  /* ── Status UI ───────────────────────────────────────────── */
+  function setStatus(cls, label) {
+    $('statusPill').className = 'status-pill ' + cls;
+    $('statusText').textContent = label;
+  }
+
+  function setRefreshing(active) {
+    $('refreshBtn').disabled = active;
+    $('refreshBtn').classList.toggle('spinning', active);
+  }
+
+  /* ── CSS token theme ─────────────────────────────────────── */
+  function applyTokenTheme(tok) {
+    const root = document.documentElement;
+    if (tok === 'xlm') {
+      root.style.setProperty('--tok',       'var(--xlm)');
+      root.style.setProperty('--tok-light', 'var(--xlm-light)');
+      root.style.setProperty('--tok-glow',  'var(--xlm-glow)');
+    } else {
+      root.style.setProperty('--tok',       'var(--xrp)');
+      root.style.setProperty('--tok-light', 'var(--xrp-light)');
+      root.style.setProperty('--tok-glow',  'var(--xrp-glow)');
+    }
+  }
+
+  /* ── Tab switching ───────────────────────────────────────── */
+  window.switchTab = function(tab) {
+    activeTab = tab;
+
+    // Panels
+    $('panelXRP').classList.toggle('active', tab === 'xrp');
+    $('panelXLM').classList.toggle('active', tab === 'xlm');
+
+    // Tab buttons
+    $('tabXRP').className = 'tab-btn' + (tab === 'xrp' ? ' active-xrp' : '');
+    $('tabXLM').className = 'tab-btn' + (tab === 'xlm' ? ' active-xlm' : '');
+
+    // Theme
+    applyTokenTheme(tab);
+
+    // Lazy-load: fetch XLM data the first time the tab is opened
+    if (tab === 'xlm' && !state.xlm.loaded && !state.xlm.loading) {
+      loadToken('xlm');
+    }
+  };
+
+  /* ── WebSocket connection ────────────────────────────────── */
+  function getNodeUrl() { return $('nodeSelect').value; }
+
+  function connect() {
+    if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
+    setStatus('connecting', 'Connecting');
+    $('refreshBtn').disabled = true;
+
+    ws = new WebSocket(getNodeUrl());
+
+    ws.onopen = () => {
+      reconnectAttempts = 0;
+      setStatus('connected', 'Live');
+      $('refreshBtn').disabled = false;
+      loadToken('xrp');
+    };
+
+    ws.onmessage = evt => {
+      let msg;
+      try { msg = JSON.parse(evt.data); } catch { return; }
+      const entry = pending.get(msg.id);
+      if (!entry) return;
+      clearTimeout(entry.timer);
+      pending.delete(msg.id);
+      msg.error ? entry.reject(new Error(msg.error.message || 'RPC error'))
+                : entry.resolve(msg.result);
+    };
+
+    ws.onclose = () => {
+      setStatus('error', 'Disconnected');
+      $('refreshBtn').disabled = true;
+      scheduleReconnect();
+    };
+
+    ws.onerror = () => setStatus('error', 'Error');
+  }
+
+  function scheduleReconnect() {
+    if (reconnectAttempts >= MAX_RECONNECT) { setStatus('error', 'Offline'); return; }
+    reconnectAttempts++;
+    setTimeout(connect, Math.min(1000 * reconnectAttempts, 15000));
+  }
+
+  function rpc(method, params, timeout = 12_000) {
+    return new Promise((resolve, reject) => {
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        reject(new Error('WebSocket not open')); return;
+      }
+      const id = ++callId;
+      const timer = setTimeout(() => {
+        pending.delete(id); reject(new Error('RPC timeout'));
+      }, timeout);
+      pending.set(id, { resolve, reject, timer });
+      ws.send(JSON.stringify({ id, method: 'call', params: [0, method, params] }));
+    });
+  }
+
+  /* ── BitShares data fetching ─────────────────────────────── */
+  async function getObjects(ids) {
+    return rpc('get_objects', [ids]);
+  }
+
+  async function fetchPoolData(cfg) {
+    const raw = await getObjects(cfg.ids);
+    const valid = raw.filter(Boolean);
+
+    const assetIds = [...new Set(valid.flatMap(p => [p.asset_a, p.asset_b]))];
+    const assetObjs = await getObjects(assetIds);
+    const assetMap = {};
+    assetObjs.filter(Boolean).forEach(a => { assetMap[a.id] = a; });
+
+    return valid.map(pool => {
+      const assetA = assetMap[pool.asset_a] || { symbol: '?', precision: 5 };
+      const assetB = assetMap[pool.asset_b] || { symbol: '?', precision: 5 };
+      const amtA   = pool.balance_a / Math.pow(10, assetA.precision);
+      const amtB   = pool.balance_b / Math.pow(10, assetB.precision);
+
+      // Identify the native-token side (XRP or XLM)
+      const isTokA = cfg.tokenSymbolPattern.test(assetA.symbol);
+      const isTokB = cfg.tokenSymbolPattern.test(assetB.symbol);
+      const tokAmt = isTokA ? amtA : isTokB ? amtB : amtB;
+
+      // TVL = 2 × native-token balance (balanced pool invariant)
+      const tvl = 2 * tokAmt;
+
+      // Price ratio: units of the non-native asset per 1 native token
+      let ratio = 0, ratioSymbol = '';
+      if (isTokA && amtA > 0) { ratio = amtB / amtA; ratioSymbol = assetB.symbol; }
+      else if (isTokB && amtB > 0) { ratio = amtA / amtB; ratioSymbol = assetA.symbol; }
+
+      const feePct = pool.taker_fee_percent != null
+        ? (pool.taker_fee_percent / 100).toFixed(2) + '%' : '—';
+
+      return {
+        id: pool.id,
+        name: cfg.labels[pool.id] || `${assetA.symbol}/${assetB.symbol}`,
+        assetA: { symbol: assetA.symbol, amount: amtA },
+        assetB: { symbol: assetB.symbol, amount: amtB },
+        tvl, ratio, ratioSymbol, feePct,
+      };
+    });
+  }
+
+  async function fetchPrice(url) {
+    try {
+      const res  = await fetch(url);
+      const data = await res.json();
+      return data?.quotes?.USD?.price ?? null;
+    } catch { return null; }
+  }
+
+  /* ── Render helpers ──────────────────────────────────────── */
+  function renderSkeletons(listEl, count) {
+    listEl.innerHTML = Array.from({ length: count }, () => `
+      <div class="skel-card">
+        <div class="skel-line w-60 skeleton"></div>
+        <div class="skel-line w-80 skeleton"></div>
+        <div class="skel-line w-40 skeleton"></div>
+      </div>`).join('');
+  }
+
+  function renderSummary(tok, pools, price) {
+    const totalTVL = pools.reduce((s, p) => s + p.tvl, 0);
+    const cfg = POOLS[tok];
+    const pfx = tok; // 'xrp' or 'xlm'
+
+    $(pfx + 'StatPools').textContent = pools.length;
+
+    const priceEl = $(pfx + 'StatPrice');
+    if (price !== null) {
+      priceEl.textContent = '$' + price.toFixed(4);
+      priceEl.classList.add('price-flash');
+      setTimeout(() => priceEl.classList.remove('price-flash'), 500);
+    } else {
+      priceEl.textContent = '—';
+    }
+
+    $(pfx + 'StatTVL').textContent = fmtToken(totalTVL, cfg.tokenName);
+    $(pfx + 'StatTVLUsd').textContent = price
+      ? fmtUSD(totalTVL * price) + ' estimated'
+      : 'across all pools';
+
+    $(pfx + 'PoolCount').textContent = pools.length + ' pool' + (pools.length !== 1 ? 's' : '');
+    $('lastUpdated').textContent = 'Updated ' + fmtTime(new Date());
+  }
+
+  function renderPools(tok, pools, price) {
+    const listEl = $(tok + 'PoolList');
+    const cfg    = POOLS[tok];
+
+    if (!pools.length) {
+      listEl.innerHTML = `
+        <div class="state-box error-box">
+          <span class="state-icon">⚠</span>
+          <div class="state-title">No pools returned</div>
+          <div class="state-msg">The node returned no data for the configured ${cfg.tokenName} pool IDs.</div>
+          <button class="btn-retry" onclick="window.bsExplorer.reload('${tok}')">Retry</button>
+        </div>`;
+      return;
+    }
+
+    const totalTVL = pools.reduce((s, p) => s + p.tvl, 0);
+    const sorted   = [...pools].sort((a, b) => b.tvl - a.tvl);
+
+    listEl.innerHTML = sorted.map((pool, idx) => {
+      const sharePct = totalTVL > 0 ? (pool.tvl / totalTVL * 100) : 0;
+      const usdTVL   = price ? fmtUSD(pool.tvl * price) : null;
+
+      return `
+        <div class="pool-card">
+          <div class="pool-card-inner">
+            <div class="pool-accent"></div>
+            <div class="pool-main">
+              <div class="pool-top">
+                <div class="pool-name-row">
+                  <span class="pool-badge">LP ${idx + 1}</span>
+                  <span class="pool-name">${escHtml(pool.name)}</span>
+                  <span class="pool-id">${escHtml(pool.id)}</span>
+                </div>
+                <span class="pool-fee-badge">Fee ${escHtml(pool.feePct)}</span>
+              </div>
+              <div class="pool-balances">
+                <div class="balance-chip">
+                  <span class="sym">${escHtml(pool.assetA.symbol)}</span>
+                  <span class="amt">${fmtNum(pool.assetA.amount, 4)}</span>
+                </div>
+                <span class="balance-sep">⇄</span>
+                <div class="balance-chip">
+                  <span class="sym">${escHtml(pool.assetB.symbol)}</span>
+                  <span class="amt">${fmtNum(pool.assetB.amount, 4)}</span>
+                </div>
+                ${pool.ratio > 0
+                  ? `<span class="metric-ratio">1 ${escHtml(cfg.tokenName)} ≈ ${fmtNum(pool.ratio, 5)} ${escHtml(pool.ratioSymbol)}</span>`
+                  : ''}
+              </div>
+            </div>
+            <div class="pool-metrics">
+              <div class="metric-label">TVL</div>
+              <div class="metric-tvl">${fmtToken(pool.tvl, cfg.tokenName)}</div>
+              ${usdTVL ? `<div class="metric-usd">${usdTVL}</div>` : ''}
+            </div>
+          </div>
+          <div class="pool-share-row">
+            <div class="share-bar-wrap">
+              <div class="share-bar-track">
+                <div class="share-bar-fill" style="width:${sharePct.toFixed(1)}%"></div>
+              </div>
+              <span class="share-pct">${sharePct.toFixed(1)}%</span>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function renderError(tok, msg) {
+    const listEl = $(tok + 'PoolList');
+    listEl.innerHTML = `
+      <div class="state-box error-box">
+        <span class="state-icon">✕</span>
+        <div class="state-title">Connection Error</div>
+        <div class="state-msg">${escHtml(msg)}</div>
+        <button class="btn-retry" onclick="window.bsExplorer.reload('${tok}')">Retry</button>
+      </div>`;
+  }
+
+  /* ── Load orchestration ──────────────────────────────────── */
+  async function loadToken(tok) {
+    const s   = state[tok];
+    const cfg = POOLS[tok];
+
+    if (s.loading) return;
+    s.loading = true;
+
+    // Only show spinner if this is the active tab
+    if (tok === activeTab) setRefreshing(true);
+
+    // Show skeletons on first load
+    if (!s.loaded) renderSkeletons($(tok + 'PoolList'), cfg.ids.length);
+
+    try {
+      const [price, pools] = await Promise.all([
+        fetchPrice(cfg.priceUrl),
+        fetchPoolData(cfg),
+      ]);
+
+      s.price  = price;
+      s.pools  = pools;
+      s.loaded = true;
+
+      renderSummary(tok, pools, price);
+      renderPools(tok, pools, price);
+    } catch (err) {
+      console.error('[BSExplorer]', tok, err);
+      renderError(tok, err.message || 'Unknown error. Please retry.');
+    } finally {
+      s.loading = false;
+      if (tok === activeTab) setRefreshing(false);
+    }
+  }
+
+  async function loadAll() {
+    setRefreshing(true);
+    // Always reload active tab; reload the other only if already loaded
+    const other = activeTab === 'xrp' ? 'xlm' : 'xrp';
+    const tasks = [loadToken(activeTab)];
+    if (state[other].loaded) tasks.push(loadToken(other));
+    await Promise.all(tasks);
+    setRefreshing(false);
+  }
+
+  /* ── Auto-refresh ────────────────────────────────────────── */
+  function startAutoRefresh() {
+    clearInterval(refreshTimer);
+    refreshTimer = setInterval(() => {
+      if (ws && ws.readyState === WebSocket.OPEN) loadAll();
+    }, REFRESH_INTERVAL_MS);
+  }
+
+  /* ── Event listeners ─────────────────────────────────────── */
+  $('refreshBtn').addEventListener('click', () => {
+    if (!$('refreshBtn').disabled) loadAll();
+  });
+
+  $('nodeSelect').addEventListener('change', () => {
+    if (ws) { ws.onclose = null; ws.close(); ws = null; }
+    pending.forEach(({ reject, timer }) => { clearTimeout(timer); reject(new Error('Node changed')); });
+    pending.clear();
+    reconnectAttempts = 0;
+    // Reset loaded flags so fresh skeletons appear
+    state.xrp.loaded = false;
+    state.xlm.loaded = false;
+    connect();
+  });
+
+  /* ── Boot ────────────────────────────────────────────────── */
+  connect();
+  startAutoRefresh();
+
+  // Expose for retry buttons
+  window.bsExplorer = { reload: loadToken };
+
+})();
+</script>
+</body>
+</html>
