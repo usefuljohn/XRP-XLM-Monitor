@@ -1,0 +1,313 @@
+/* ── Swap Tool Styles ── */
+/* Scoped to #swap-app to prevent collision with Monitor */
+
+:root {
+  --bg-swap:          #0d1117;
+  --surface-swap:     #161b22;
+  --surface2-swap:    #21262d;
+  --border-swap:      #30363d;
+  --text-swap:        #e6edf3;
+  --text-muted-swap:  #8b949e;
+  --accent-swap:      #58a6ff;
+  --accent-dim-swap:  #1f6feb;
+  --green-swap:       #3fb950;
+  --yellow-swap:      #d29922;
+  --red-swap:         #f85149;
+  --orange-swap:      #e3b341;
+  --radius-swap:      8px;
+  --font-mono:   "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+#swap-app {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1rem 0;
+  color: var(--text-swap);
+}
+
+/* ── Connection status badge ─────────────────────────────────────────────── */
+#swap-app .status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+#swap-app .status-badge.disconnected { background: var(--surface2-swap); color: var(--text-muted-swap); border: 1px solid var(--border-swap); }
+#swap-app .status-badge.connecting   { background: #2d2a1a; color: var(--orange-swap); border: 1px solid var(--orange-swap); }
+#swap-app .status-badge.connected    { background: #122d1a; color: var(--green-swap);  border: 1px solid var(--green-swap); }
+#swap-app .status-badge.error        { background: #2d1a1a; color: var(--red-swap);    border: 1px solid var(--red-swap); }
+
+/* ── Route diagram ───────────────────────────────────────────────────────── */
+#swap-app .route-diagram {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: var(--surface-swap);
+  border: 1px solid var(--border-swap);
+  border-radius: var(--radius-swap);
+  padding: 1.25rem 1.5rem;
+  flex-wrap: wrap;
+}
+#swap-app .route-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 80px;
+}
+#swap-app .route-node .symbol {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+#swap-app .route-node.sell  .symbol { color: var(--red-swap); }
+#swap-app .route-node.buy   .symbol { color: var(--green-swap); }
+#swap-app .route-node .label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted-swap);
+}
+#swap-app .route-hop {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+#swap-app .pool-tag {
+  background: var(--surface2-swap);
+  border: 1px solid var(--border-swap);
+  border-radius: 4px;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted-swap);
+}
+#swap-app .hop-arrow { color: var(--accent-swap); font-size: 1.2rem; }
+#swap-app .mid-asset {
+  font-weight: 700;
+  color: var(--accent-swap);
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+}
+
+/* ── Card ────────────────────────────────────────────────────────────────── */
+#swap-app .card {
+  background: var(--surface-swap);
+  border: 1px solid var(--border-swap);
+  border-radius: var(--radius-swap);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+#swap-app .card h2 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-swap);
+  border-bottom: 1px solid var(--border-swap);
+  padding-bottom: 0.5rem;
+}
+#swap-app .card h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-muted-swap);
+  margin-top: 0.5rem;
+}
+
+/* ── Form fields ─────────────────────────────────────────────────────────── */
+#swap-app .field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+#swap-app label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-muted-swap);
+}
+#swap-app .hint {
+  font-weight: 400;
+  font-size: 0.78rem;
+  color: var(--text-muted-swap);
+  margin-left: 0.4rem;
+}
+#swap-app input[type="number"],
+#swap-app input[type="text"] {
+  background: var(--surface2-swap);
+  border: 1px solid var(--border-swap);
+  border-radius: var(--radius-swap);
+  color: var(--text-swap);
+  font-size: 0.95rem;
+  padding: 0.5rem 0.75rem;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.15s;
+}
+#swap-app input:focus { border-color: var(--accent-dim-swap); }
+#swap-app input::placeholder { color: var(--text-muted-swap); }
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+#swap-app .btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+#swap-app .btn {
+  padding: 0.5rem 1.1rem;
+  border-radius: var(--radius-swap);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.15s, background 0.15s;
+}
+#swap-app .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+#swap-app .btn.primary   { background: var(--accent-dim-swap); color: #fff; }
+#swap-app .btn.primary:not(:disabled):hover  { background: var(--accent-swap); }
+#swap-app .btn.secondary { background: var(--surface2-swap); color: var(--text-swap); border: 1px solid var(--border-swap); }
+#swap-app .btn.secondary:not(:disabled):hover { border-color: var(--accent-swap); color: var(--accent-swap); }
+
+/* ── Summary grid ────────────────────────────────────────────────────────── */
+#swap-app .summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+}
+#swap-app .summary-item {
+  background: var(--surface2-swap);
+  border: 1px solid var(--border-swap);
+  border-radius: var(--radius-swap);
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+#swap-app .s-label { font-size: 0.75rem; color: var(--text-muted-swap); text-transform: uppercase; letter-spacing: 0.05em; }
+#swap-app .s-value { font-size: 1.05rem; font-weight: 700; font-family: var(--font-mono); }
+
+/* ── Tables ──────────────────────────────────────────────────────────────── */
+#swap-app table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  overflow-x: auto;
+  display: block;
+}
+#swap-app th, #swap-app td {
+  padding: 0.5rem 0.65rem;
+  text-align: right;
+  border-bottom: 1px solid var(--border-swap);
+  white-space: nowrap;
+}
+#swap-app th { color: var(--text-muted-swap); font-weight: 600; text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.05em; }
+#swap-app td:first-child, #swap-app th:first-child { text-align: left; }
+#swap-app tr:last-child td { border-bottom: none; }
+#swap-app tr:hover td { background: var(--surface2-swap); }
+
+/* ── Transaction section ─────────────────────────────────────────────────── */
+#swap-app .tx-note {
+  font-size: 0.85rem;
+  color: var(--text-muted-swap);
+}
+#swap-app .tx-note a { color: var(--accent-swap); text-decoration: none; }
+#swap-app .tx-note a:hover { text-decoration: underline; }
+#swap-app .code-block {
+  background: var(--surface2-swap);
+  border: 1px solid var(--border-swap);
+  border-radius: var(--radius-swap);
+  padding: 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-muted-swap);
+  overflow-x: auto;
+  white-space: pre;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+/* ── Log ─────────────────────────────────────────────────────────────────── */
+#swap-app #log-output {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  max-height: 220px;
+  overflow-y: auto;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+#swap-app .log-line { padding: 0.15rem 0; }
+#swap-app .log-line.info    { color: var(--text-muted-swap); }
+#swap-app .log-line.success { color: var(--green-swap); }
+#swap-app .log-line.error   { color: var(--red-swap); }
+#swap-app .log-line.warning { color: var(--orange-swap); }
+#swap-app .log-time { color: var(--border-swap); margin-right: 0.5em; }
+
+/* ── Utilities ───────────────────────────────────────────────────────────── */
+#swap-app .hidden { display: none !important; }
+
+#swap-app .warn { color: var(--orange-swap) !important; font-weight: 600; }
+#swap-app .success { color: var(--green-swap) !important; font-weight: 600; }
+
+/* ── Asset Icons ────────────────────────────────────────────────────────── */
+#swap-app .asset-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--surface2-swap);
+  border: 1px solid var(--border-swap);
+  font-size: 0.7rem;
+  font-weight: 800;
+  margin-right: 0.5rem;
+  color: var(--text-swap);
+  flex-shrink: 0;
+}
+#swap-app .asset-icon.xrp { border-color: #23292f; background: #23292f; color: #fff; }
+#swap-app .asset-icon.xlm { border-color: #000; background: #000; color: #fff; }
+#swap-app .asset-icon.bts { border-color: var(--accent-dim-swap); background: var(--accent-dim-swap); color: #fff; }
+
+/* ── Copy Feedback ───────────────────────────────────────────────────────── */
+#swap-app .btn.copied {
+  background: var(--green-swap) !important;
+  color: #fff !important;
+  border-color: var(--green-swap) !important;
+}
+
+/* ── Account Verification ────────────────────────────────────────────────── */
+#swap-app .account-name-badge {
+  font-size: 0.75rem;
+  color: var(--green-swap);
+  margin-top: 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+#swap-app .account-name-badge.loading { color: var(--text-muted-swap); }
+#swap-app .account-name-badge.error { color: var(--red-swap); }
+
+/* ── Toggle Switch ───────────────────────────────────────────────────────── */
+#swap-app .toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+#swap-app .btn-toggle {
+  background: var(--surface2-swap);
+  border: 1px solid var(--border-swap);
+  color: var(--text-muted-swap);
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+#swap-app .btn-toggle:hover { border-color: var(--accent-swap); color: var(--text-swap); }

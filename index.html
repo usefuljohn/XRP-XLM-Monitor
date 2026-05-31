@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>BitShares Pool Explorer · XRP &amp; XLM</title>
+  <link rel="stylesheet" href="style.css" />
   <style>
     /* ── Reset & Base ─────────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -161,13 +162,30 @@
       color: var(--xlm-light);
       box-shadow: inset 0 0 0 1px rgba(45,110,94,.4);
     }
+    .tab-btn.active-swap {
+      background: linear-gradient(135deg, rgba(91,163,224,.25) 0%, rgba(88,166,255,.15) 100%);
+      color: var(--accent);
+      box-shadow: inset 0 0 0 1px rgba(91,163,224,.4);
+    }
 
     .tab-dot {
       width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
     }
     .tab-btn.active-xrp .tab-dot { background: var(--xrp-light); box-shadow: 0 0 5px var(--xrp-light); }
     .tab-btn.active-xlm .tab-dot { background: var(--xlm-light); box-shadow: 0 0 5px var(--xlm-light); }
-    .tab-btn:not(.active-xrp):not(.active-xlm) .tab-dot { background: var(--text-mute); }
+    .tab-btn.active-swap .tab-dot { background: var(--accent); box-shadow: 0 0 5px var(--accent); }
+    .tab-btn:not(.active-xrp):not(.active-xlm):not(.active-swap) .tab-dot { background: var(--text-mute); }
+
+    /* ── Swap Button in Header ────────────────────────────────── */
+    .btn-swap-header {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 12px; font-weight: 700; color: #fff;
+      background: linear-gradient(135deg, var(--accent-dim, #1f6feb) 0%, var(--accent, #58a6ff) 100%);
+      border: none; border-radius: var(--radius-sm); padding: 6px 14px;
+      cursor: pointer; transition: var(--tr); box-shadow: 0 2px 10px rgba(88,166,255,0.2);
+    }
+    .btn-swap-header:hover { transform: translateY(-1px); box-shadow: 0 4px 15px rgba(88,166,255,0.3); }
+    .btn-swap-header:active { transform: translateY(0); }
 
     /* ── Main ─────────────────────────────────────────────────── */
     main { padding: 24px 0 60px; }
@@ -413,6 +431,9 @@
           </svg>
           Refresh
         </button>
+        <button class="btn-swap-header" onclick="switchTab('swap')">
+          Swap Mode ⇄
+        </button>
       </div>
     </div>
   </div>
@@ -429,6 +450,9 @@
       </button>
       <button class="tab-btn" id="tabXLM" onclick="switchTab('xlm')">
         <span class="tab-dot"></span> XLM Pools
+      </button>
+      <button class="tab-btn" id="tabSwap" onclick="switchTab('swap')">
+        <span class="tab-dot"></span> Swap Tool
       </button>
     </div>
 
@@ -463,7 +487,6 @@
       </div>
     </div>
 
-    <!-- ── XLM Panel ──────────────────────────────────────────── -->
     <div class="tab-panel" id="panelXLM">
       <div class="summary-bar">
         <div class="stat-card">
@@ -490,6 +513,182 @@
         <div class="skel-card"><div class="skel-line w-60 skeleton"></div><div class="skel-line w-80 skeleton"></div><div class="skel-line w-40 skeleton"></div></div>
         <div class="skel-card"><div class="skel-line w-60 skeleton"></div><div class="skel-line w-80 skeleton"></div><div class="skel-line w-40 skeleton"></div></div>
         <div class="skel-card"><div class="skel-line w-60 skeleton"></div><div class="skel-line w-80 skeleton"></div><div class="skel-line w-40 skeleton"></div></div>
+      </div>
+    </div>
+
+    <!-- ── Swap Panel ──────────────────────────────────────────── -->
+    <div class="tab-panel" id="panelSwap">
+      <div id="swap-app">
+        <!-- ── Sub Header ────────────────────────────────────────────────── -->
+        <div class="section-head">
+          <div class="section-title">IOB XRP ⇄ IOB XLM Swap</div>
+          <div id="conn-status" class="status-badge disconnected">Disconnected</div>
+        </div>
+
+        <!-- ── Route diagram ───────────────────────────────────────────────── -->
+        <section class="route-diagram" aria-label="Route overview">
+          <div id="route-display" style="display: contents;">
+            <div class="route-node sell">
+              <div class="asset-icon xrp" id="icon-sell">X</div>
+              <span class="symbol" id="symbol-sell">IOB.XRP</span>
+              <span class="label">sell</span>
+            </div>
+            <div class="route-hop">
+              <div class="pool-tag" id="tag-pool-1">Pool 1.19.133</div>
+              <div class="hop-arrow">⇒</div>
+              <div class="mid-asset">
+                 <div class="asset-icon bts">B</div>
+                 BTS
+              </div>
+              <div class="hop-arrow">⇒</div>
+              <div class="pool-tag" id="tag-pool-2">Pool 1.19.399</div>
+            </div>
+            <div class="route-node buy">
+              <div class="asset-icon xlm" id="icon-buy">L</div>
+              <span class="symbol" id="symbol-buy">IOB.XLM</span>
+              <span class="label">receive</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- ── Input form ───────────────────────────────────────────────────── -->
+        <section class="card" id="input-section">
+          <div class="toggle-row">
+            <h2>Swap Parameters</h2>
+            <button id="btn-toggle-dir" class="btn-toggle">Swap Direction ⇄</button>
+          </div>
+
+          <div class="field-group">
+            <label for="amount-input" id="label-amount">Amount to sell (IOB.XRP)</label>
+            <input
+              id="amount-input"
+              type="number"
+              min="0.0001"
+              step="0.0001"
+              value="100"
+              placeholder="e.g. 100"
+            />
+          </div>
+
+          <div class="field-group">
+            <label for="slippage-input">Slippage tolerance (%)</label>
+            <input
+              id="slippage-input"
+              type="number"
+              min="0.1"
+              max="10"
+              step="0.1"
+              value="0.5"
+              placeholder="0.5"
+            />
+          </div>
+
+          <div class="field-group">
+            <label for="account-input">
+              Account ID
+              <span class="hint">(optional — required for transaction output)</span>
+            </label>
+            <input
+              id="account-input"
+              type="text"
+              placeholder="e.g. 1.2.12345"
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <div id="account-verify" class="account-name-badge hidden"></div>
+          </div>
+
+          <div class="btn-row">
+            <button id="btn-refresh" class="btn primary" disabled>
+              Fetch Live Prices
+            </button>
+            <button id="btn-connect" class="btn secondary">
+              Connect to Node
+            </button>
+          </div>
+        </section>
+
+        <!-- ── Results ─────────────────────────────────────────────────────── -->
+        <section class="card hidden" id="results-section">
+          <h2>Path Analysis</h2>
+
+          <div class="summary-grid">
+            <div class="summary-item">
+              <span class="s-label">You sell</span>
+              <span class="s-value" id="res-sell">—</span>
+            </div>
+            <div class="summary-item">
+              <span class="s-label">Intermediate BTS</span>
+              <span class="s-value" id="res-mid">—</span>
+            </div>
+            <div class="summary-item">
+              <span class="s-label">You receive</span>
+              <span class="s-value" id="res-receive">—</span>
+            </div>
+            <div class="summary-item">
+              <span class="s-label">Effective rate</span>
+              <span class="s-value" id="res-rate">—</span>
+            </div>
+          </div>
+
+          <h3>Leg Details</h3>
+          <table id="legs-table">
+            <thead>
+              <tr>
+                <th>Leg</th>
+                <th>Pool</th>
+                <th>Sell</th>
+                <th>Buy</th>
+                <th>Amount In</th>
+                <th>Amount Out</th>
+                <th>Min Receive</th>
+                <th>Fee (bps)</th>
+                <th>Price Impact</th>
+              </tr>
+            </thead>
+            <tbody id="legs-body"></tbody>
+          </table>
+
+          <h3>Pool Reserves</h3>
+          <table id="reserves-table">
+            <thead>
+              <tr>
+                <th>Pool</th>
+                <th>Asset A</th>
+                <th>Reserve A</th>
+                <th>Asset B</th>
+                <th>Reserve B</th>
+              </tr>
+            </thead>
+            <tbody id="reserves-body"></tbody>
+          </table>
+        </section>
+
+        <!-- ── Transaction output ──────────────────────────────────────────── -->
+        <section class="card hidden" id="tx-section">
+          <h2>Transaction Output</h2>
+          <p class="tx-note">
+            Account ID is required to generate a transaction.
+            The deep link opens directly in the
+            <a href="https://github.com/bitshares/beet" target="_blank" rel="noopener">Beet</a>
+            desktop wallet for signing.
+          </p>
+
+          <div class="btn-row">
+            <button id="btn-deeplink" class="btn primary">Open in Beet (deep link)</button>
+            <button id="btn-copy-json" class="btn secondary">Copy JSON</button>
+            <button id="btn-download-json" class="btn secondary">Download JSON</button>
+            <button id="btn-copy-deeplink" class="btn secondary">Copy Deep Link</button>
+          </div>
+
+          <pre id="tx-json-preview" class="code-block"></pre>
+        </section>
+
+        <!-- ── Log ─────────────────────────────────────────────────────────── -->
+        <section class="card" id="log-section">
+          <h2>Log</h2>
+          <div id="log-output" role="log" aria-live="polite"></div>
+        </section>
       </div>
     </div>
 
@@ -624,13 +823,15 @@
     // Panels
     $('panelXRP').classList.toggle('active', tab === 'xrp');
     $('panelXLM').classList.toggle('active', tab === 'xlm');
+    $('panelSwap').classList.toggle('active', tab === 'swap');
 
     // Tab buttons
     $('tabXRP').className = 'tab-btn' + (tab === 'xrp' ? ' active-xrp' : '');
     $('tabXLM').className = 'tab-btn' + (tab === 'xlm' ? ' active-xlm' : '');
+    $('tabSwap').className = 'tab-btn' + (tab === 'swap' ? ' active-swap' : '');
 
     // Theme
-    applyTokenTheme(tab);
+    if (tab !== 'swap') applyTokenTheme(tab);
 
     // Lazy-load: fetch XLM data the first time the tab is opened
     if (tab === 'xlm' && !state.xlm.loaded && !state.xlm.loading) {
@@ -975,5 +1176,6 @@
 
 })();
 </script>
+<script type="module" src="app.js"></script>
 </body>
 </html>

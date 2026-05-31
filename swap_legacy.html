@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IOB XRP → XLM Path</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+
+    <!-- ── Header ──────────────────────────────────────────────────────── -->
+    <header>
+      <h1>IOB.XRP <span class="arrow">→</span> IOB.XLM</h1>
+      <p class="subtitle">1-hop path via BTS liquidity pools on BitShares</p>
+      <div id="conn-status" class="status-badge disconnected">Disconnected</div>
+    </header>
+
+    <!-- ── Route diagram ───────────────────────────────────────────────── -->
+    <section class="route-diagram" aria-label="Route overview">
+      <div id="route-display" style="display: contents;">
+        <div class="route-node sell">
+          <div class="asset-icon xrp" id="icon-sell">X</div>
+          <span class="symbol" id="symbol-sell">IOB.XRP</span>
+          <span class="label">sell</span>
+        </div>
+        <div class="route-hop">
+          <div class="pool-tag" id="tag-pool-1">Pool 1.19.133</div>
+          <div class="hop-arrow">⇒</div>
+          <div class="mid-asset">
+             <div class="asset-icon bts">B</div>
+             BTS
+          </div>
+          <div class="hop-arrow">⇒</div>
+          <div class="pool-tag" id="tag-pool-2">Pool 1.19.399</div>
+        </div>
+        <div class="route-node buy">
+          <div class="asset-icon xlm" id="icon-buy">L</div>
+          <span class="symbol" id="symbol-buy">IOB.XLM</span>
+          <span class="label">receive</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Input form ───────────────────────────────────────────────────── -->
+    <section class="card" id="input-section">
+      <div class="toggle-row">
+        <h2>Swap Parameters</h2>
+        <button id="btn-toggle-dir" class="btn-toggle">Swap Direction ⇄</button>
+      </div>
+
+      <div class="field-group">
+        <label for="amount-input" id="label-amount">Amount to sell (IOB.XRP)</label>
+        <input
+          id="amount-input"
+          type="number"
+          min="0.0001"
+          step="0.0001"
+          value="100"
+          placeholder="e.g. 100"
+        />
+      </div>
+
+      <div class="field-group">
+        <label for="slippage-input">Slippage tolerance (%)</label>
+        <input
+          id="slippage-input"
+          type="number"
+          min="0.1"
+          max="10"
+          step="0.1"
+          value="0.5"
+          placeholder="0.5"
+        />
+      </div>
+
+      <div class="field-group">
+        <label for="account-input">
+          Account ID
+          <span class="hint">(optional — required for transaction output)</span>
+        </label>
+        <input
+          id="account-input"
+          type="text"
+          placeholder="e.g. 1.2.12345"
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <div id="account-verify" class="account-name-badge hidden"></div>
+      </div>
+
+      <div class="btn-row">
+        <button id="btn-refresh" class="btn primary" disabled>
+          Fetch Live Prices
+        </button>
+        <button id="btn-connect" class="btn secondary">
+          Connect to Node
+        </button>
+      </div>
+    </section>
+
+    <!-- ── Results ─────────────────────────────────────────────────────── -->
+    <section class="card hidden" id="results-section">
+      <h2>Path Analysis</h2>
+
+      <div class="summary-grid">
+        <div class="summary-item">
+          <span class="s-label">You sell</span>
+          <span class="s-value" id="res-sell">—</span>
+        </div>
+        <div class="summary-item">
+          <span class="s-label">Intermediate BTS</span>
+          <span class="s-value" id="res-mid">—</span>
+        </div>
+        <div class="summary-item">
+          <span class="s-label">You receive</span>
+          <span class="s-value" id="res-receive">—</span>
+        </div>
+        <div class="summary-item">
+          <span class="s-label">Effective rate</span>
+          <span class="s-value" id="res-rate">—</span>
+        </div>
+      </div>
+
+      <h3>Leg Details</h3>
+      <table id="legs-table">
+        <thead>
+          <tr>
+            <th>Leg</th>
+            <th>Pool</th>
+            <th>Sell</th>
+            <th>Buy</th>
+            <th>Amount In</th>
+            <th>Amount Out</th>
+            <th>Min Receive</th>
+            <th>Fee (bps)</th>
+            <th>Price Impact</th>
+          </tr>
+        </thead>
+        <tbody id="legs-body"></tbody>
+      </table>
+
+      <h3>Pool Reserves</h3>
+      <table id="reserves-table">
+        <thead>
+          <tr>
+            <th>Pool</th>
+            <th>Asset A</th>
+            <th>Reserve A</th>
+            <th>Asset B</th>
+            <th>Reserve B</th>
+          </tr>
+        </thead>
+        <tbody id="reserves-body"></tbody>
+      </table>
+    </section>
+
+    <!-- ── Transaction output ──────────────────────────────────────────── -->
+    <section class="card hidden" id="tx-section">
+      <h2>Transaction Output</h2>
+      <p class="tx-note">
+        Account ID is required to generate a transaction.
+        The deep link opens directly in the
+        <a href="https://github.com/bitshares/beet" target="_blank" rel="noopener">Beet</a>
+        desktop wallet for signing.
+      </p>
+
+      <div class="btn-row">
+        <button id="btn-deeplink" class="btn primary">Open in Beet (deep link)</button>
+        <button id="btn-copy-json" class="btn secondary">Copy JSON</button>
+        <button id="btn-download-json" class="btn secondary">Download JSON</button>
+        <button id="btn-copy-deeplink" class="btn secondary">Copy Deep Link</button>
+      </div>
+
+      <pre id="tx-json-preview" class="code-block"></pre>
+    </section>
+
+    <!-- ── Log ─────────────────────────────────────────────────────────── -->
+    <section class="card" id="log-section">
+      <h2>Log</h2>
+      <div id="log-output" role="log" aria-live="polite"></div>
+    </section>
+
+  </div><!-- /#app -->
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

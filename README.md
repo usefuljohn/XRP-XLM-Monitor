@@ -1,41 +1,56 @@
-# BitShares Pool Explorer: XRP & XLM
+# BitShares Pool Explorer ⇄ IOB Swap Tool
 
-A real-time liquidity pool monitor for XRP and XLM pairs on the BitShares DEX. This tool provides insights into pool health, yield opportunities, and trading volume.
+A unified, dependency-free dashboard for monitoring and executing XRP/XLM swaps on the BitShares DEX. This tool combines real-time liquidity pool monitoring with a purpose-built 1-hop swap path calculator.
 
 ## 🚀 Getting Started
 
-There are two ways to use this application:
+### Development Server Required
+**Important:** Because the Swap Tool uses vanilla ES Modules, you **cannot** open `index.html` directly from your file system. You must serve the `iob` directory with a static file server:
 
-### 1. Standalone Version (Quick Start)
-Open `index.html` directly in any web browser. 
-- **No installation required.**
-- **Zero dependencies.**
-- **Portable**: Perfect for quick checks or sharing with others.
+```bash
+# Option 1: Node.js (npx)
+npx serve .
 
-### 2. React Version (For Developers)
-The project is built with React and TypeScript for a more robust, feature-rich experience.
-- Ensure you have [Node.js](https://nodejs.org/) installed.
-- Run `npm install` to install dependencies.
-- Run `npm run dev` to start the development server.
+# Option 2: Python 3
+python -m http.server 8000
+```
 
-## 📊 Interpreting the Data
+Then navigate to `http://localhost:3000` or `http://localhost:8000`.
 
-The monitor displays several key metrics for each liquidity pool:
+---
 
-*   **TVL (Total Value Locked)**: The total value of assets currently held in the pool. We calculate this as `2 × balance of the native asset` (XRP or XLM), assuming the pool is balanced.
-*   **APY (Annual Percentage Yield)**: An estimate of the yearly returns for liquidity providers based on the last 24 hours of trading fees.
-*   **24h Volume**: The total amount of trading activity in the pool over the last 24 hours.
-*   **Price Ratio**: Shows the current exchange rate between the two assets in the pool.
+## 📊 Feature 1: The Monitor (Landing Page)
+The landing page provides a high-level overview of XRP and XLM liquidity pools.
 
-## ⚙️ Configuration
+*   **Live Metrics**: TVL, APY, 24h Volume, and current Price Ratios.
+*   **Asset Tabs**: Quickly switch between XRP and XLM pool sets.
+*   **Health Tracking**: Visual indicators for connection status and data freshness.
+*   **Interpret Data**: TVL is calculated as `2 × balance of the native asset`, providing a standard benchmark for pool depth.
 
-You can customize the monitor by editing `config.ts`:
+## ⇄ Feature 2: The Swap Tool (Beet Integration)
+Once you've identified a trading opportunity in the monitor, enter **Swap Mode** to execute the trade.
 
-*   **Nodes**: Update the `BITSHARES_NODES` array to add or prioritize different API endpoints.
-*   **Pools**: Add new pool IDs to `IOXRP_POOL_IDS` or `IOXLM_POOL_IDS` to track additional liquidity pairs.
+*   **1-Hop Path**: Automatically computes the optimal route via BTS (`XRP → BTS → XLM` or `XLM → BTS → XRP`).
+*   **Live AMM Math**: Real-time output calculations with price impact and slippage protection.
+*   **Beet Wallet Integration**: Generates `rawbeeteos://` deep links for secure signing.
+*   **Account Verification**: Instantly resolves BitShares Account IDs to names.
+
+---
+
+## 🛠 Workflow: From Monitor to Swap
+
+1.  **Analyze**: Review the **XRP Pools** or **XLM Pools** tabs to check current liquidity and price ratios.
+2.  **Enter Swap Mode**: Click the **"Swap Mode ⇄"** button in the header or the **"Swap Tool"** tab.
+3.  **Configure**:
+    *   Choose your direction (XRP→XLM or XLM→XRP).
+    *   Enter the amount and slippage tolerance.
+4.  **Connect**: Click **"Connect to Node"** (the swap tool maintains a specialized connection for transaction building).
+5.  **Sign**: Enter your **Account ID**, verify the name, and click **"Open in Beet"** to broadcast your swap to the blockchain.
+
+## 📜 Technical Notes
+- **Zero Runtime Dependencies**: Pure HTML/CSS/JS.
+- **WebSocket RPC**: Communicates directly with BitShares nodes.
+- **Scoped Styles**: Swap tool styles are isolated to prevent interference with the monitor UI.
 
 ## 📜 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-Created by [usefuljohn](https://github.com/usefuljohn).
+MIT License. Created by [usefuljohn](https://github.com/usefuljohn).
