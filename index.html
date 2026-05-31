@@ -709,36 +709,68 @@
     const assetMap = {};
     assetObjs.filter(Boolean).forEach(a => { assetMap[a.id] = a; });
 
-    return valid.map(pool => {
+    // Calculate 24h ago timestamp
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).getTime();
+
+    const poolsWithHistory = await Promise.all(valid.map(async pool => {
       const assetA = assetMap[pool.asset_a] || { symbol: '?', precision: 5 };
       const assetB = assetMap[pool.asset_b] || { symbol: '?', precision: 5 };
       const amtA   = pool.balance_a / Math.pow(10, assetA.precision);
       const amtB   = pool.balance_b / Math.pow(10, assetB.precision);
 
-      // Identify the native-token side (XRP or XLM)
       const isTokA = cfg.tokenSymbolPattern.test(assetA.symbol);
       const isTokB = cfg.tokenSymbolPattern.test(assetB.symbol);
       const tokAmt = isTokA ? amtA : isTokB ? amtB : amtB;
-
-      // TVL = 2 × native-token balance (balanced pool invariant)
       const tvl = 2 * tokAmt;
 
-      // Price ratio: units of the non-native asset per 1 native token
+      // Fetch history for Volume/APY
+      let volume24h = 0;
+      try {
+        const poolAccount = pool.id.replace('1.19.', '1.2.');
+        const history = await rpc('get_account_history', [poolAccount, '1.11.0', 50, '1.11.0']);
+        
+        history.forEach(item => {
+          const op = item[1];
+          if (op.op[0] === 83 && op.op[1].pool === pool.id) {
+            const time = new Date(op.block_time + 'Z').getTime();
+            if (time >= oneDayAgo) {
+              const sellAmt = parseInt(op.op[1].amount_to_sell.amount);
+              const sellAsset = op.op[1].amount_to_sell.asset_id;
+              const assetInfo = assetMap[sellAsset];
+              if (assetInfo) {
+                const normalizedAmt = sellAmt / Math.pow(10, assetInfo.precision);
+                // Convert to native token volume
+                if (cfg.tokenSymbolPattern.test(assetInfo.symbol)) {
+                  volume24h += normalizedAmt;
+                } else {
+                  // If selling other asset, use pool ratio or simple mirror
+                  volume24h += (normalizedAmt * (tokAmt / (isTokA ? amtB : amtA)));
+                }
+              }
+            }
+          }
+        });
+      } catch (e) { console.warn('History fetch failed for', pool.id); }
+
+      const feeRate = (pool.taker_fee_percent || 20) / 10000; // Default 0.2%
+      const apy = tvl > 0 ? ((volume24h * feeRate * 365) / tvl) * 100 : 0;
+
       let ratio = 0, ratioSymbol = '';
       if (isTokA && amtA > 0) { ratio = amtB / amtA; ratioSymbol = assetB.symbol; }
-      else if (isTokB && amtB > 0) { ratio = amtA / amtB; ratioSymbol = assetA.symbol; }
-
-      const feePct = pool.taker_fee_percent != null
-        ? (pool.taker_fee_percent / 100).toFixed(2) + '%' : '—';
+      else if (isTokB && amtB > 0) { ratio = amtA / amtB; ratioSymbol = assetB.symbol; }
 
       return {
         id: pool.id,
         name: cfg.labels[pool.id] || `${assetA.symbol}/${assetB.symbol}`,
         assetA: { symbol: assetA.symbol, amount: amtA },
         assetB: { symbol: assetB.symbol, amount: amtB },
-        tvl, ratio, ratioSymbol, feePct,
+        tvl, ratio, ratioSymbol, 
+        feePct: (pool.taker_fee_percent / 100).toFixed(2) + '%',
+        apy: apy.toFixed(2) + '%'
       };
-    });
+    }));
+
+    return poolsWithHistory;
   }
 
   async function fetchPrice(url) {
@@ -835,7 +867,9 @@
               </div>
             </div>
             <div class="pool-metrics">
-              <div class="metric-label">TVL</div>
+              <div class="metric-label">APY</div>
+              <div class="metric-tvl" style="color:var(--green)">${pool.apy}</div>
+              <div class="metric-label" style="margin-top:8px">TVL</div>
               <div class="metric-tvl">${fmtToken(pool.tvl, cfg.tokenName)}</div>
               ${usdTVL ? `<div class="metric-usd">${usdTVL}</div>` : ''}
             </div>
