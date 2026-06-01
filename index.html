@@ -731,7 +731,7 @@
     xlm: {
       ids: ['1.19.464', '1.19.399', '1.19.434'],
       labels: {
-        '1.19.464': 'TWENTIX / XLM',
+        '1.19.464': 'BTWTY / XLM',
         '1.19.399': 'BTS / XLM',
         '1.19.434': 'HONEST.MONEY / XLM',
       },
@@ -958,7 +958,7 @@
 
       let ratio = 0, ratioSymbol = '';
       if (isTokA && amtA > 0) { ratio = amtB / amtA; ratioSymbol = assetB.symbol; }
-      else if (isTokB && amtB > 0) { ratio = amtA / amtB; ratioSymbol = assetB.symbol; }
+      else if (isTokB && amtB > 0) { ratio = amtA / amtB; ratioSymbol = assetA.symbol; }
 
       return {
         id: pool.id,
